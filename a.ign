@@ -1,6 +1,6 @@
 {
   "ignition": {
-    "version": "3.0.0"
+    "version": "3.2.0"
   },
   "passwd": {
     "users": [
@@ -9,8 +9,10 @@
           "sudo",
           "docker"
         ],
-        "name": "icaksh",
-        "passwordHash": "$y$j9T$n6h8P2ik8tfoNUFBBoly00$7bnrMF8oFrB25Fc3NqigqEH/MI5YXIJwtCG/iEsns.2"
+        "name": "core",
+        "sshAuthorizedKeys": [
+          "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICDNGo6u4J6rX+1FbVOMfj8whzD5nQ+RNOZ7n8H//EO0"
+        ]
       }
     ]
   },
@@ -18,52 +20,46 @@
     "files": [
       {
         "contents": {
-          "source": "data:,CoreOS%20%20%20%20%20%20%20%20%20%20%0A"
+          "source": "data:;base64,Y29yZW9zICAgICAgICAgIAo="
         },
         "mode": 420,
         "path": "/etc/hostname"
       },
       {
         "contents": {
-          "source": "data:,%23%20Tell%20systemd%20to%20not%20use%20a%20pager%20when%20printing%20information%0Aexport%20SYSTEMD_PAGER%3Dcat%20%20%20%20%20%20%20%20%20%20%0A"
+          "source": "data:;base64,IyBUZWxsIHN5c3RlbWQgdG8gbm90IHVzZSBhIHBhZ2VyIHdoZW4gcHJpbnRpbmcgaW5mb3JtYXRpb24KZXhwb3J0IFNZU1RFTURfUEFHRVI9Y2F0ICAgICAgICAgIAo="
         },
         "mode": 420,
         "path": "/etc/profile.d/systemd-pager.sh"
       },
       {
         "contents": {
-          "source": "data:,%23%20Raise%20console%20message%20logging%20level%20from%20DEBUG%20(7)%20to%20WARNING%20(4)%0A%23%20to%20hide%20audit%20messages%20from%20the%20interactive%20console%0Akernel.printk%3D4%20%20%20%20%20%20%20%20%20%20%0A"
+          "source": "data:,%23%20Raise%20console%20message%20logging%20level%20from%20DEBUG%20(7)%20to%20WARNING%20(4)%0A%23%20to%20hide%20audit%20messages%20from%20the%20interactive%20console%0Akernel.printk%3D4%20%20%0A"
         },
         "mode": 420,
         "path": "/etc/sysctl.d/20-silence-audit.conf"
       },
       {
         "contents": {
-          "source": "data:,%23%20Enable%20SSH%20password%20login%0APasswordAuthentication%20yes%20%20%20%20%20%20%20%20%20%20"
+          "compression": "gzip",
+          "source": "data:;base64,H4sIAAAAAAAC/4yNPc7CMBBEe5/CRdpk9bWflAo4ASWi2KwHB8Wxo7XDz+1RYomaakaveO/ikkzQVtDmwkPA1USe0R93bA8ne96xbW0zcAarjGY7q4Z+LGXJ/0QuPWNI7Loq6yTNFO5xfdENLilTowjgjAeUvhqqQYO4jev/jF+8jJCp3gnv3wt+8eYTAAD//yDqnTXMAAAA"
         },
-        "mode": 420,
-        "path": "/etc/ssh/sshd_config.d/20-enable-passwords.conf"
+        "overwrite": true,
+        "path": "/etc/yum.repos.d/docker-ce.repo"
       }
     ]
   },
   "systemd": {
     "units": [
       {
+        "contents": "[Unit]\nDescription=Docker rpm-ostree install\nWants=network-online.target\nAfter=network-online.target\n# We run before `zincati.service` to avoid conflicting rpm-ostree\n# transactions.\nBefore=zincati.service\nConditionPathExists=!/var/lib/%N.stamp\n\n[Service]\nType=oneshot\nRemainAfterExit=yes\nExecStart=/usr/bin/rpm-ostree override remove docker containerd runc\nExecStart=/bin/touch /var/lib/%N.stamp\n\n[Install]\nWantedBy=multi-user.target\n",
         "enabled": true,
-        "name": "docker.service"
+        "name": "rpm-ostree-uninstall.service"
       },
       {
+        "contents": "[Unit]\nDescription=Docker rpm-ostree install\nWants=network-online.target\nRequires=rpm-ostree-uninstall.service\nAfter=rpm-ostree-uninstall.service\n# We run before `zincati.service` to avoid conflicting rpm-ostree\n# transactions.\nBefore=zincati.service\nConditionPathExists=!/var/lib/%N.stamp\n\n[Service]\nType=oneshot\nRemainAfterExit=yes\nExecStart=/usr/bin/rpm-ostree install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin\nExecStart=/bin/touch /var/lib/%N.stamp\n\n[Install]\nWantedBy=multi-user.target",
         "enabled": true,
-        "name": "containerd.service"
-      },
-      {
-        "dropins": [
-          {
-            "contents": "[Service]\n# Override Execstart in main unit\nExecStart=\n# Add new Execstart with `-` prefix to ignore failure\nExecStart=-/usr/sbin/agetty --autologin admin --noclear %I $TERM\nTTYVTDisallocate=no          \n",
-            "name": "autologin-core.conf"
-          }
-        ],
-        "name": "serial-getty@ttyS0.service"
+        "name": "rpm-ostree-install.service"
       }
     ]
   }
